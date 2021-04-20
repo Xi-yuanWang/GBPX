@@ -4,3 +4,5 @@ cmake .
 
 openmp: 修改CMakeFiles/GBP_utils.dir/link.txt 与 flags.make 
 加入 -O3 -fopenmp
+
+为了使用 glib 需要 module load gcc/7.3.0（即动态库的编译器)

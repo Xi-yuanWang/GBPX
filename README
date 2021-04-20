@@ -1,1 +1,6 @@
 # GBPX
+
+cmake .
+
+openmp: 修改CMakeFiles/GBP_utils.dir/link.txt 与 flags.make 
+加入 -O3 -fopenmp

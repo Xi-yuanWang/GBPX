@@ -4,3 +4,5 @@ cmake .
 
 openmp: 修改CMakeFiles/GBP_utils.dir/link.txt 与 flags.make 
 加入 -O3 -fopenmp
+
+发现产生的向量基本稠密，改用Eigen实现

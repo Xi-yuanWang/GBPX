@@ -119,7 +119,7 @@ public:
             return;
         auto ret = ret_.mutable_unchecked<3>();
         auto R = R_.unchecked<3>();
-        INDICE_TYPE ns = snode.size(), nF = ret.shape(2);
+        INDICE_TYPE ns = snode.size(), nF = ret.shape(1);
         FEATURE_TYPE weight = 1.0 / nr;
         // #pragma omp parallel for
         for (INDICE_TYPE i = 0; i < ns; ++i)

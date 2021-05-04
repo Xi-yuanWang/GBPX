@@ -9,6 +9,7 @@ from utils.PPRPush import EdgeList
 # import time
 # Dense Feature
 
+
 class Graph:
     '''
     nV: int
@@ -23,6 +24,7 @@ class Graph:
     EL: EdgeList
     rmax: np.ndarray
     '''
+    # 结点数,特征维数,r,wl,hop数,误差
 
     def __init__(self, nV: int, nF: int, r: float, wl:
                  np.ndarray, L: int, rmax: float):
@@ -35,6 +37,8 @@ class Graph:
         self.rmax = np.empty((nF), dtype=np.double)
         self.rmax.fill(rmax)
         self.delta = rmax
+    # 初始设置边
+    # edge_index.shape == (2,edgenum)
 
     def setEdge(self, edge_index: np.ndarray):
         self.A = sp.sparse.csr_matrix(
@@ -48,6 +52,8 @@ class Graph:
         self.Trev = sp.sparse.diags(self.Drev)*self.A
         self.EL.addEdge(edge_index[0], edge_index[1])
         self.T = None
+    # 添加边并push
+    # edge_index.shape == (2,edgenum)
 
     def addEdge(self, edge_index: np.ndarray):
         dA = sp.sparse.csr_matrix((np.ones(
@@ -81,17 +87,16 @@ class Graph:
         self.EL.push(dDrow, self.Drev, self.Q, self.R, self.rmax)
         self.T = None
 
+    # 传入稠密特征
     def setDenseX(self, X: np.ndarray):
         self.rawX = X.astype(np.double)
         self.X = X.astype(np.double)
+    # 传入稀疏特征
 
     def setSparseX(self, X: np.ndarray):
         self.rawX = sp.sparse.csr_matrix(X, dtype=np.double)
         self.X = X.astype(np.double)
-
-    def reset(self):
-        self.X = self.rawX
-        self.nF = self.X.shape[1]
+    # 降维稀疏特征
 
     def compressSparse(self, dim: int, pca_train_ratio: float):
         self.pca = TruncatedSVD(n_components=dim, n_iter=10)
@@ -103,6 +108,7 @@ class Graph:
             np.stack((np.max(self.X, axis=0), -np.min(self.X, axis=0))).reshape(2, -1), axis=0)
         self.nF = dim
         return self.pca.explained_variance_ratio_
+    # 降维稠密特征
 
     def compressDense(self, dim: int, pca_train_ratio: float):
         self.pca = PCA(n_components=dim, iterated_power=14)
@@ -111,9 +117,10 @@ class Graph:
         self.rmax = np.empty((dim), dtype=np.double)
         self.rmax.fill(self.nF/dim*self.delta)
         self.rmax /= np.max(
-            np.stack((np.max(self.X, axis=0), -np.min(self.X, axis=0))).reshape(2, -1), axis=0)
+            np.stack((np.max(self.X, axis=0), -np.min(self.X, axis=0), np.ones_like(self.rmax))).reshape(3, -1), axis=0)
         self.nF = dim
         return self.pca.explained_variance_ratio_
+    # 预计算
 
     def precompute(self):
         self.Q = np.zeros((self.L+1, self.nV, self.nF), dtype=np.double)
@@ -129,8 +136,7 @@ class Graph:
     def concatenateQForConv(self):
         return (1/self.Dnegr.reshape(-1, 1)).reshape(-1, 1, 1)*np.transpose(self.Q, (1, 2, 0))
 
-    # warning: node with no edge
-    # 整个放入c++。传入T
+    # 得到结果
     def randomWalk(self, snode: np.ndarray, nr: int):
         if(self.T is not None):
             return self.T
@@ -139,8 +145,3 @@ class Graph:
         self.EL.randomWalk(snode, self.T, self.R, nr)
         self.T = (1/self.Dnegr[snode]).reshape(-1, 1, 1)*(self.T)
         return self.T
-    # reset wl and get P
-
-    def getP(self, wl):
-        self.P = (1/self.Dnegr.reshape(-1, 1)) * \
-            np.tensordot(self.wl[::-1], self.Q, axes=[0, 0])

@@ -6,10 +6,10 @@ import numpy as np
 import torch.utils.data as Data
 
 
-class classifer(nn.Module):
+class MLP(nn.Module):
     def __init__(self, in_channels, num_layers, hidden_channels, out_channels,
                  dropout):
-        super(classifer, self).__init__()
+        super(MLP, self).__init__()
 
         self.lins = torch.nn.ModuleList()
         self.lins.append(torch.nn.Linear(in_channels, hidden_channels))
@@ -19,7 +19,6 @@ class classifer(nn.Module):
             self.lins.append(torch.nn.Linear(hidden_channels, hidden_channels))
             self.bns.append(torch.nn.BatchNorm1d(hidden_channels))
         self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
-
         self.dropout = dropout
 
     def reset_parameters(self):
@@ -42,7 +41,6 @@ class ConvMLP(nn.Module):
     def __init__(self, depth, nF, num_layers, hidden_channels,
                  out_channels, dropout):
         super(ConvMLP, self).__init__()
-
         self.lins = torch.nn.ModuleList()
         self.lins.append(torch.nn.Conv1d(nF, nF, depth, groups=nF))
         self.lins.append(torch.nn.Linear(nF, hidden_channels))
@@ -54,6 +52,7 @@ class ConvMLP(nn.Module):
         self.lins.append(torch.nn.Linear(hidden_channels, out_channels))
 
         self.dropout = dropout
+        self.reset_parameters()
 
     def reset_parameters(self):
         for lin in self.lins:
@@ -139,7 +138,7 @@ def accuracy(output, labels):
     return micro
 
 
-def muticlass_f1(output, labels):
+def multiclass_f1(output, labels):
     output = np.argmax(output, axis=1)
     micro = f1_score(labels, output, average='micro')
     return micro
@@ -174,10 +173,12 @@ def test(model, loader, loss_fn, score_fn, batch_cnt=-1):
                                    batch_y.detach().numpy()))
     return loss_list, score_list
 
+# 一个简单的测试预计算结果的函数。split是指结点的下标组成的array
+
 
 def testX_split(X, Y, train_split, valid_split, test_split,
                 niter=20, classifer=None, loss_fn=torch.nn.NLLLoss(),
-                batch_size=1024, score_fn=accuracy):
+                batch_size=1024, score_fn=accuracy, optimizer=None):
     if(classifer is None):
         classifer = ConvMLP(X.shape[2], X.shape[1], 2, 128, len(set(Y)), 0.5)
     trainset = Data.TensorDataset(torch.Tensor(X[train_split]).to(
@@ -190,20 +191,20 @@ def testX_split(X, Y, train_split, valid_split, test_split,
                                   batch_size=batch_size,
                                   shuffle=True)
     validloader = Data.DataLoader(dataset=validset,
-                                  batch_size=4096,
+                                  batch_size=8192,
                                   shuffle=True)
     testloader = Data.DataLoader(dataset=testset,
-                                 batch_size=4096,
+                                 batch_size=8192,
                                  shuffle=True)
 
     score = 0
-    optimizer = torch.optim.Adam(classifer.parameters(), lr=0.01)
+    if(optimizer is None):
+        optimizer = torch.optim.Adam(classifer.parameters(), lr=0.01)
     for i in range(niter):
         trainloss = train(
             classifer, trainloader, loss_fn, optimizer)
         validloss, validscore = test(
             classifer, validloader, loss_fn, score_fn)
-        # testloss,testscore=model.test(classifer,testloader,torch.nn.NLLLoss(),model.muticlass_f1)
         score = np.average(validscore)
         print(score)
     testloss, testscore = test(
